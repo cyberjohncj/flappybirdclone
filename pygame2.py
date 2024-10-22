@@ -4,83 +4,72 @@ import random
 
 # CONSTANTS
 WIDTH, HEIGHT = 550, 800
+FPS = 60
 
 GRAVITY = 1
 JUMP_POWER = -12
 
 # PIPE SETTINGS
+PIPE_SPAWN_RATE = 45
+PIPE_SPEED = 5
+MIN_GAP_HEIGHT = 100
+MAX_GAP_HEIGHT = 150
 
-PIPE_SPAWN_RATE = 60 # Frames
-PIPE_WIDTH = 70
-MIN_GAP_HEIGHT = 150
-MAX_GAP_HEIGHT = 250
-
-FPS = 60
-
-class Sprite:
-    def __init__(self, x, y, name, width=None, height=None):
-        self.x = x
-        self.y = y
-        self.image = pygame.image.load(f"assets/{name}")
-
-        if width and height:
-            self.image = pygame.transform.scale(self.image, (width, height))
-        
-        self.rect = self.image.get_rect(topleft=(x, y))
+# IMAGES
+birds = [
+    pygame.image.load("assets/yellowbird_m.png")
+]
+top_pipe_image = pygame.image.load("assets/pipetop.png")
+btm_pipe_image = pygame.image.load("assets/pipebtm.png")
+bg1 = pygame.image.load("assets/bg_day.png")
 
 class Pipe(pygame.sprite.Sprite):
-    def __init__(self, x):
+    def __init__(self, x, y, image):
         super().__init__()
-        self.image = pygame.image.load("assets/pipe.png").convert_alpha()
-
-        gap_height = random.randint(MIN_GAP_HEIGHT, MAX_GAP_HEIGHT)
-        gap_y = random.randint(200, HEIGHT - gap_height - 200) 
-        
-        self.topImage = pygame.transform.scale(self.image, (PIPE_WIDTH, gap_y))
-        self.topImage = pygame.transform.flip(self.topImage, False, True)
-
-        self.btmImage = pygame.transform.scale(self.image, (PIPE_WIDTH, HEIGHT - gap_y - gap_height))
-
-        self.topRect = self.topImage.get_rect(topleft=(x, 0))
-        self.btmRect = self.btmImage.get_rect(topleft=(x, gap_y + gap_height))
+        self.image = image
+        self.rect = self.image.get_rect()
+        self.rect.x, self.rect.y = x, y
 
     def update(self):
-        self.topRect.x -= 5
-        self.btmRect.x -= 5
+        self.rect.x -= PIPE_SPEED
 
     def draw(self, screen):
-        screen.blit(self.topImage, self.topRect.topleft) 
-        screen.blit(self.btmImage, self.btmRect.topleft)
+        screen.blit(self.image, self.rect)
 
     def off_screen(self):
-        return self.topRect.x < -self.topRect.width
+        return self.rect.x < -self.rect.width
 
-class Bird(Sprite):
+class Bird(pygame.sprite.Sprite):
     def __init__(self, x, y):
-        super().__init__(x, y, "yellowbird_m.png", width=50, height=40)
-        self.velocity_y = 0
+        super().__init__()
+        self.image = birds[0]
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = y
+        self.vel = 0
 
     def update(self):
-        self.velocity_y += GRAVITY
+        self.vel += GRAVITY
+        self.rect.y += self.vel
 
-        self.rect.y += self.velocity_y
+        if self.rect.y < 0:
+            self.rect.y = 0
+        elif self.rect.y > HEIGHT:
+            self.rect.y = HEIGHT
 
-        if bird.rect.y < 0:
-            bird.rect.y = 0
-        elif bird.rect.y > HEIGHT:
-            bird.rect.y = HEIGHT
-    
     def jump(self):
-        self.velocity_y = JUMP_POWER
+        self.vel = JUMP_POWER
 
 class Game:
     def __init__(self):
-        self.pipes = []
         self.spawn_timer = 0
-    
+
     def spawn_pipe(self):
-        new_pipe = Pipe(WIDTH)
-        self.pipes.append(new_pipe)
+        x_top = 550
+        y_top = random.randint(-600, -480)
+        y_btm = y_top + random.randint(MIN_GAP_HEIGHT, MAX_GAP_HEIGHT) + btm_pipe_image.get_height()
+        pipes.add(Pipe(x_top, y_top, top_pipe_image))
+        pipes.add(Pipe(x_top, y_btm, btm_pipe_image))
 
     def update(self):
         self.spawn_timer += 1
@@ -88,21 +77,25 @@ class Game:
             self.spawn_pipe()
             self.spawn_timer = 0
 
-        for pipe in self.pipes:
-            pipe.update()
+        pipes.update()
 
-        self.pipes = [pipe for pipe in self.pipes if not pipe.off_screen()]
-    
+        for pipe in list(pipes):
+            if pipe.off_screen():
+                pipes.remove(pipe)
+
 pygame.init()
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("My Game")
 
-background = pygame.image.load("assets/bg_day.png")
-background = pygame.transform.scale(background, (WIDTH, HEIGHT))
+background = pygame.transform.scale(bg1, (WIDTH, HEIGHT))
 
 clock = pygame.time.Clock()
-bird = Bird(WIDTH/10, HEIGHT/2)
+
+bird = pygame.sprite.GroupSingle()
+bird.add(Bird(WIDTH / 10, HEIGHT / 2))
+
+pipes = pygame.sprite.Group()
 
 game = Game()
 
@@ -114,16 +107,15 @@ while main:
             sys.exit()
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
-                bird.jump()
-    
+                bird.sprite.jump()
+
     bird.update()
     game.update()
 
     screen.blit(background, (0, 0))
-    screen.blit(bird.image, bird.rect)
-
-    for pipe in game.pipes:
-        pipe.draw(screen)
+    pipes.draw(screen)
+    if bird.sprite:
+        screen.blit(bird.sprite.image, bird.sprite.rect)
 
     pygame.display.flip()
     clock.tick(FPS)

@@ -1,4 +1,4 @@
-# Just Another Flappy Bird Clone
+# Birdy The Flapper
 
 ## Description
 

@@ -1,4 +1,4 @@
-# Birdy The Flapper
+# Pygame Project
 
 ## Description
 
